@@ -131,7 +131,7 @@ async function loadData() {
   setSyncState("loading", "Loading data...");
   renderSkeletons();
   try {
-    const res = await fetch(API_URL + "?action=getData");
+    const res = await fetch(API_URL + "?action=getData&nocache=" + Date.now());
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
     State.allData = json.data || [];
@@ -496,7 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
       icon.classList.add("spin");
       
       try {
-        await fetch(API_URL + "?action=syncNow");
+        await fetch(API_URL + "?action=syncNow&nocache=" + Date.now());
       } catch (e) {
         console.error("Sync failed:", e);
       }
