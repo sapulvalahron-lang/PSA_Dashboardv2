@@ -3,7 +3,7 @@
  */
 "use strict";
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwhTsirwhENfa1Nmyx_jc8iqTg8WHwgNnDFjkhqIWim7KCU6EvPFP17X6z6sBkwc1lL7Q/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwmkxxkowDHENrqNJWNasKLbEX3vBRPZsCqS0dAsidg2HG-UYDo_IUAagBUeqW96HhC/exec";
 
 const MONTH_ORDER = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DEPT_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4"];
@@ -68,6 +68,19 @@ function showAppShell() {
   document.getElementById("appShell").classList.add("visible");
 }
 
+// Full-Screen Loader helpers
+function showFSL(text, sub) {
+  const el = document.getElementById("fullScreenLoader");
+  if (!el) return;
+  document.getElementById("fslText").textContent = text || "Processing...";
+  document.getElementById("fslSub").textContent = sub || "Please wait a moment";
+  el.classList.add("show");
+}
+function hideFSL() {
+  const el = document.getElementById("fullScreenLoader");
+  if (el) el.classList.remove("show");
+}
+
 function computeProgress(rows) {
   const total = rows.length;
   const ahead = rows.filter(r => statusClass(r.Status) === "ahead").length;
@@ -84,6 +97,141 @@ function showErrorToast(msg) {
   document.getElementById("errorToastText").textContent = msg;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 3500);
+}
+
+function setUploadModalState(open) {
+  const backdrop = document.getElementById("uploadModalBackdrop");
+  if (!backdrop) return;
+  backdrop.classList.toggle("show", open);
+  backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+}
+
+function showUploadResultModal(result) {
+  const updated = Number(result && result.updated ? result.updated : 0);
+  const skipped = Number(result && result.skipped ? result.skipped : 0);
+  const errors = Array.isArray(result && result.errors) ? result.errors : [];
+
+  const updatedNode = document.getElementById("uploadUpdatedCount");
+  const skippedNode = document.getElementById("uploadSkippedCount");
+  const errorNode = document.getElementById("uploadErrorCount");
+  const errorsWrap = document.getElementById("uploadErrorsWrap");
+  const errorsList = document.getElementById("uploadErrorsList");
+  const subtitle = document.getElementById("uploadModalSubtitle");
+
+  if (updatedNode) updatedNode.textContent = String(updated);
+  if (skippedNode) skippedNode.textContent = String(skipped);
+  if (errorNode) errorNode.textContent = String(errors.length);
+  if (subtitle) subtitle.textContent = errors.length > 0 ? "The upload completed with validation errors. Review every line before closing." : "The upload completed successfully.";
+
+  if (errorsWrap && errorsList) {
+    errorsList.innerHTML = errors.length > 0
+      ? errors.map(err => `<li>${esc(err)}</li>`).join("")
+      : `<li style="border-color:rgba(16,185,129,.22);color:#065f46;background:#f0fdf4;">No row-level errors were reported.</li>`;
+    errorsWrap.hidden = false;
+  }
+
+  setUploadModalState(true);
+}
+
+function hideUploadResultModal() {
+  setUploadModalState(false);
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
+
+function setUploadLoadingState(message) {
+  const updatedNode = document.getElementById("uploadUpdatedCount");
+  const skippedNode = document.getElementById("uploadSkippedCount");
+  const errorNode = document.getElementById("uploadErrorCount");
+  const errorsWrap = document.getElementById("uploadErrorsWrap");
+  const errorsList = document.getElementById("uploadErrorsList");
+  const subtitle = document.getElementById("uploadModalSubtitle");
+
+  if (updatedNode) updatedNode.textContent = "...";
+  if (skippedNode) skippedNode.textContent = "...";
+  if (errorNode) errorNode.textContent = "...";
+  if (subtitle) subtitle.textContent = message || "Uploading CSV...";
+  if (errorsWrap && errorsList) {
+    errorsList.innerHTML = "";
+    errorsWrap.hidden = true;
+  }
+  setUploadModalState(true);
+}
+
+function buildTemplateFileName() {
+  const stamp = new Date().toISOString().slice(0, 10);
+  return `psa_csv_template_${stamp}.csv`;
+}
+
+async function downloadCsvTemplate() {
+  const button = document.getElementById("downloadTemplateBtn");
+  if (button) button.disabled = true;
+  try {
+    // window.location natively handles the GAS 302 redirect without triggering CORS
+    window.location.href = `${API_URL}?action=downloadTemplate`;
+  } catch (error) {
+    console.error("Template download failed:", error);
+    showErrorToast(`Template download failed: ${error.message}`);
+  } finally {
+    setTimeout(() => { if (button) button.disabled = false; }, 2000);
+  }
+}
+
+async function uploadCsvFile(file) {
+  const uploadBtn = document.getElementById("uploadDataBtn");
+  if (!file) return;
+
+  if (!/\.csv$/i.test(file.name)) {
+    showErrorToast("Please choose a .csv file.");
+    return;
+  }
+
+  if (uploadBtn) uploadBtn.disabled = true;
+  showFSL("Processing Data...", "Uploading CSV to server");
+  try {
+    const csvText = await file.text();
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: csvText
+    });
+
+    const rawText = await response.text();
+    let result;
+    try {
+      result = JSON.parse(rawText);
+    } catch (parseError) {
+      throw new Error(`Upload response was not valid JSON: ${parseError.message}`);
+    }
+
+    if (!response.ok) {
+      throw new Error((result && result.errors && result.errors[0]) || `Upload failed (${response.status})`);
+    }
+
+    hideFSL();
+    showUploadResultModal(result || { updated: 0, skipped: 0, errors: ["Upload response was empty."] });
+    if (result && Number(result.updated || 0) > 0) {
+      await loadData({ silent: true });
+    }
+  } catch (error) {
+    hideFSL();
+    console.error("Upload failed:", error);
+    const modalUpdated = document.getElementById("uploadUpdatedCount");
+    const modalSkipped = document.getElementById("uploadSkippedCount");
+    const modalErrors = document.getElementById("uploadErrorCount");
+    const modalErrorList = document.getElementById("uploadErrorsList");
+    const errorsWrap = document.getElementById("uploadErrorsWrap");
+    
+    if (modalUpdated) modalUpdated.textContent = 0;
+    if (modalSkipped) modalSkipped.textContent = 0;
+    if (modalErrors) modalErrors.textContent = 1;
+    if (modalErrorList) {
+      modalErrorList.innerHTML = `<li style="color: #ef4444;">Upload Error: ${error.message}. Check console.</li>`;
+    }
+    if (errorsWrap) errorsWrap.hidden = false;
+    setUploadModalState(true);
+  } finally {
+    if (uploadBtn) uploadBtn.disabled = false;
+  }
 }
 
 function validateDateInput(inputNode) {
@@ -127,9 +275,12 @@ function renderProgressBarHtml(b) {
   `;
 }
 
-async function loadData() {
-  setSyncState("loading", "Loading data...");
-  renderSkeletons();
+async function loadData(opts) {
+  const silent = !!(opts && opts.silent);
+  if (!silent) {
+    setSyncState("loading", "Loading data...");
+    renderSkeletons();
+  }
   try {
     const res = await fetch(API_URL + "?action=getData&nocache=" + Date.now());
     const json = await res.json();
@@ -271,7 +422,7 @@ function buildTableHtml(rows) {
   });
 
   let html = `<div class="data-table-wrap"><table class="data-table">
-    <thead><tr><th>Report Title</th><th>Month</th><th>Metric/Task</th><th>In-Charge</th><th>Date Submitted</th><th>Deadline</th><th>Status</th><th>Remarks</th></tr></thead>`;
+    <thead><tr><th>Report Title</th><th>Month</th><th>Metric/Task</th><th>In-Charge</th><th>Date Submitted</th><th>Deadline</th><th>Status</th><th>Remarks</th><th>Action</th></tr></thead>`;
 
   for (const [freqName, freqData] of Object.entries(tree)) {
     const hasCats = Object.keys(freqData.cats).length > 0;
@@ -286,7 +437,7 @@ function buildTableHtml(rows) {
       else if (fn.includes("SEMESTRAL")) { fColor = "#06b6d4"; fBg = "rgba(6, 182, 212, 0.25)"; }
       else if (fn.includes("ANNUAL")) { fColor = "#f59e0b"; fBg = "rgba(245, 158, 11, 0.25)"; }
       
-      html += `<tr><td colspan="8" style="padding:16px 24px; background: linear-gradient(90deg, ${fBg} 0%, rgba(255,255,255,0) 100%); border-bottom:1px solid rgba(0,0,0,0.05); border-left:6px solid ${fColor};">
+      html += `<tr><td colspan="9" style="padding:16px 24px; background: linear-gradient(90deg, ${fBg} 0%, rgba(255,255,255,0) 100%); border-bottom:1px solid rgba(0,0,0,0.05); border-left:6px solid ${fColor};">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:24px;">
           <div style="font-weight:900; color:var(--text-primary); font-size:15px; min-width: 200px; text-transform: uppercase; letter-spacing: 0.05em;">${esc(freqName)}</div>
           ${renderProgressBarHtml(fProg)}
@@ -302,7 +453,7 @@ function buildTableHtml(rows) {
       const isOpen = State.openGroups.has(gName);
       const cProg = computeProgress(catRows);
       
-      html += `<tr><td colspan="8" style="padding:0">
+      html += `<tr><td colspan="9" style="padding:0">
         <button class="acc-group-hdr" data-group="${esc(gName)}" aria-expanded="${isOpen}" aria-controls="${gId}">
           <span class="acc-chevron">${Icons.chevDown}</span>
           <span class="acc-group-name" style="flex: 0 0 200px; text-align:left;">${esc(catName)}</span>
@@ -320,6 +471,20 @@ function buildTableHtml(rows) {
           <td>${dead ? `<span style="color:#6b7280">${fmtDate(dead)}</span>` : '---'}</td>
           <td>${badgeHtml(row.Status)}</td>
           <td style="max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-secondary);" title="${esc(row.Remarks || '')}">${row.Remarks ? esc(row.Remarks) : '—'}</td>
+          <td>
+            <button class="btn-action secondary" style="padding: 4px 8px; font-size: 11px;" onclick='openEditModal(${JSON.stringify({
+              frequency: row.Frequency || freqName,
+              category: row.Category || catName,
+              task: row.Task || row.MetricType,
+              period: row.Period || row.Month,
+              submitted: row.Date_Submitted,
+              sheet: row.Sheet,
+              rowNumber: row.Row,
+              dateColumn: row.DateColumn
+            }).replace(/'/g, "&#39;")})'>
+              Edit
+            </button>
+          </td>
         </tr>`;
       });
       html += `</tbody>`;
@@ -343,7 +508,6 @@ function wireAccordion() {
         State.openGroups.add(grp);
         btn.setAttribute("aria-expanded", "true");
         body.classList.add("open");
-        // Smoothly auto-scroll the expanded header into view
         setTimeout(() => {
           btn.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }, 150);
@@ -485,6 +649,44 @@ document.addEventListener("DOMContentLoaded", () => {
     renderActivePane(); 
   });
 
+  const downloadTemplateBtn = document.getElementById("downloadTemplateBtn");
+  if (downloadTemplateBtn) {
+    downloadTemplateBtn.addEventListener("click", () => {
+      downloadCsvTemplate();
+    });
+  }
+
+  const uploadDataBtn = document.getElementById("uploadDataBtn");
+  const csvFileInput = document.getElementById("csvFileInput");
+  if (uploadDataBtn && csvFileInput) {
+    uploadDataBtn.addEventListener("click", () => {
+      csvFileInput.value = "";
+      csvFileInput.click();
+    });
+    csvFileInput.addEventListener("change", () => {
+      const file = csvFileInput.files && csvFileInput.files[0];
+      if (file) uploadCsvFile(file);
+    });
+  }
+
+  const uploadModalBackdrop = document.getElementById("uploadModalBackdrop");
+  const uploadModalCloseBtn = document.getElementById("uploadModalCloseBtn");
+  const uploadModalDismissBtn = document.getElementById("uploadModalDismissBtn");
+  const uploadModalRetryBtn = document.getElementById("uploadModalRetryBtn");
+  if (uploadModalBackdrop) {
+    uploadModalBackdrop.addEventListener("click", e => {
+      if (e.target === uploadModalBackdrop) hideUploadResultModal();
+    });
+  }
+  if (uploadModalCloseBtn) uploadModalCloseBtn.addEventListener("click", hideUploadResultModal);
+  if (uploadModalDismissBtn) uploadModalDismissBtn.addEventListener("click", hideUploadResultModal);
+  if (uploadModalRetryBtn) {
+    uploadModalRetryBtn.addEventListener("click", () => {
+      hideUploadResultModal();
+      if (csvFileInput) csvFileInput.click();
+    });
+  }
+
   const syncBtn = document.getElementById("syncDataBtn");
   if (syncBtn) {
     syncBtn.addEventListener("click", async () => {
@@ -506,6 +708,107 @@ document.addEventListener("DOMContentLoaded", () => {
       syncBtn.disabled = false;
       text.innerText = "Sync Data";
       icon.classList.remove("spin");
+    });
+  }
+});
+
+let currentEditRecord = null;
+
+window.openEditModal = function(recordData) {
+  currentEditRecord = recordData;
+  document.getElementById("editModalSubtitle").textContent = `${recordData.task} (${recordData.period})`;
+  
+  const dateInput = document.getElementById("editDateInput");
+  dateInput.value = "";
+
+  const raw = recordData.submitted;
+  if (raw && raw !== "---" && raw !== "") {
+    let isoString = "";
+
+    // Format 1: MM/DD/YYYY  ← what hierarchyFormatDateValue() produces
+    const slashMatch = String(raw).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+      const [, mm, dd, yyyy] = slashMatch;
+      isoString = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+    }
+
+    // Format 2: already YYYY-MM-DD (ISO)
+    if (!isoString && /^\d{4}-\d{2}-\d{2}/.test(String(raw))) {
+      isoString = String(raw).slice(0, 10);
+    }
+
+    // Format 3: fallback — try generic Date parse (works for RFC 2822, full ISO, etc.)
+    if (!isoString) {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        isoString = d.toISOString().split("T")[0];
+      }
+    }
+
+    dateInput.value = isoString;
+  }
+  
+  document.getElementById("editModalBackdrop").classList.add("show");
+};
+
+function closeEditModal() {
+  document.getElementById("editModalBackdrop").classList.remove("show");
+  currentEditRecord = null;
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const editModalCloseBtn = document.getElementById("editModalCloseBtn");
+  const editModalCancelBtn = document.getElementById("editModalCancelBtn");
+  const editRecordForm = document.getElementById("editRecordForm");
+
+  if (editModalCloseBtn) editModalCloseBtn.addEventListener("click", closeEditModal);
+  if (editModalCancelBtn) editModalCancelBtn.addEventListener("click", closeEditModal);
+  
+  if (editRecordForm) {
+    editRecordForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!currentEditRecord) return;
+
+      const recordToSave = currentEditRecord;
+      const submittedDateValue = document.getElementById("editDateInput").value;
+
+      closeEditModal();
+      showFSL("Saving Record...", "Writing to the live spreadsheet");
+
+      try {
+        const payload = {
+          action: "updateRecordDirect",
+          data: {
+            sheet: recordToSave.sheet,
+            row: recordToSave.rowNumber,
+            dateColumn: recordToSave.dateColumn,
+            submittedDate: submittedDateValue
+          }
+        };
+
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        
+        const rawText = await response.text();
+        const result = JSON.parse(rawText);
+        
+        if (!response.ok || (result.errors && result.errors.length > 0)) {
+          throw new Error((result.errors && result.errors[0]) || "Update failed");
+        }
+
+        document.getElementById("fslText").textContent = "Syncing Dashboard...";
+        document.getElementById("fslSub").textContent = "Refreshing data";
+        await loadData({ silent: true });
+      } catch (err) {
+        console.error(err);
+        showErrorToast(`Failed to update: ${err.message}`);
+      } finally {
+        hideFSL();
+      }
     });
   }
 });

@@ -226,6 +226,13 @@
     .sync-icon { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
     .sync-icon.spin { animation: spin 1s linear infinite; }
     @keyframes spin { 100% { transform: rotate(360deg); } }
+    .header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .btn-action{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid transparent;white-space:nowrap}
+    .btn-action svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+    .btn-action.secondary{background:#fff;color:var(--text-primary);border-color:var(--border);box-shadow:0 2px 8px rgba(15,23,42,.05)}
+    .btn-action.secondary:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px);box-shadow:0 8px 18px rgba(59,82,203,.10)}
+    .btn-action.primary{background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;box-shadow:0 4px 16px rgba(20,184,166,.28)}
+    .btn-action.primary:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(20,184,166,.35)}
     #syncIndicator{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
       color:var(--text-secondary);background:var(--canvas);border:1.5px solid var(--border);
       border-radius:999px;padding:5px 12px;white-space:nowrap;flex-shrink:0}
@@ -349,6 +356,30 @@
     }
     #errorToast.show { bottom: 24px; }
 
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.56);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10000;opacity:0;pointer-events:none;transition:opacity .2s ease}
+    .modal-backdrop.show{opacity:1;pointer-events:all}
+    .upload-modal{width:min(640px,100%);background:#fff;border-radius:24px;border:1px solid rgba(226,232,240,.85);box-shadow:0 28px 80px rgba(15,23,42,.28);overflow:hidden;transform:translateY(8px) scale(.98);transition:transform .2s ease}
+    .modal-backdrop.show .upload-modal{transform:translateY(0) scale(1)}
+    .upload-modal-head{padding:18px 22px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);color:#fff}
+    .upload-modal-title{font-size:17px;font-weight:800;letter-spacing:-.01em}
+    .upload-modal-sub{font-size:12px;color:rgba(255,255,255,.72);margin-top:4px;line-height:1.45}
+    .upload-modal-close{border:none;background:rgba(255,255,255,.12);color:#fff;width:34px;height:34px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .upload-modal-close svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4}
+    .upload-modal-body{padding:20px 22px 22px}
+    .upload-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+    .upload-summary-card{border-radius:16px;padding:14px 14px 13px;border:1px solid var(--border);background:#f8fafc}
+    .upload-summary-card strong{display:block;font-size:26px;line-height:1;margin-bottom:4px;color:var(--text-primary)}
+    .upload-summary-card span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+    .upload-summary-card.updated{background:linear-gradient(180deg,rgba(16,185,129,.10),rgba(16,185,129,.04));border-color:rgba(16,185,129,.18)}
+    .upload-summary-card.skipped{background:linear-gradient(180deg,rgba(245,158,11,.12),rgba(245,158,11,.04));border-color:rgba(245,158,11,.20)}
+    .upload-summary-card.errors{background:linear-gradient(180deg,rgba(239,68,68,.12),rgba(239,68,68,.04));border-color:rgba(239,68,68,.22)}
+    .upload-errors{border:1px solid rgba(239,68,68,.22);background:rgba(254,242,242,.96);border-radius:16px;padding:14px 14px 10px;max-height:220px;overflow:auto}
+    .upload-errors-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#b91c1c;margin-bottom:10px}
+    .upload-errors ul{list-style:none;display:flex;flex-direction:column;gap:8px}
+    .upload-errors li{padding:10px 12px;border-radius:12px;background:#fff;border:1px solid rgba(239,68,68,.16);color:#7f1d1d;font-size:13px;line-height:1.45}
+    .upload-modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;flex-wrap:wrap}
+    .upload-modal-actions .btn-action{min-width:120px;justify-content:center}
+
     @media(max-width:1200px){
       .analytics-hub { grid-template-columns: 1fr 1fr; }
     }
@@ -363,6 +394,38 @@
       .kpi-grid{grid-template-columns:1fr 1fr}
       .analytics-hub { grid-template-columns: 1fr; }
     }
+
+    /* ── FULL-SCREEN LOADER OVERLAY ── */
+    #fullScreenLoader {
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 20px; opacity: 0; pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    #fullScreenLoader.show { opacity: 1; pointer-events: all; }
+    .fsl-card {
+      background: #fff; border-radius: 20px;
+      padding: 36px 44px; display: flex; flex-direction: column; align-items: center; gap: 18px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.28), 0 4px 16px rgba(0,0,0,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .fsl-spinner {
+      width: 48px; height: 48px;
+      border: 4px solid #e0e7ff;
+      border-top-color: #3b52cb;
+      border-radius: 50%;
+      animation: fsl-spin 0.75s linear infinite;
+    }
+    @keyframes fsl-spin { to { transform: rotate(360deg); } }
+    .fsl-text {
+      font-size: 14px; font-weight: 700;
+      color: var(--text-primary); letter-spacing: 0.01em;
+    }
+    .fsl-sub {
+      font-size: 11.5px; color: var(--text-muted); margin-top: -10px;
+    }
   </style>
 </head>
 <body>
@@ -375,6 +438,15 @@
     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
   </svg>
   <span id="errorToastText">Error message</span>
+</div>
+
+<!-- FULL-SCREEN LOADER -->
+<div id="fullScreenLoader" role="status" aria-live="polite" aria-label="Loading">
+  <div class="fsl-card">
+    <div class="fsl-spinner"></div>
+    <div class="fsl-text" id="fslText">Processing...</div>
+    <div class="fsl-sub" id="fslSub">Please wait a moment</div>
+  </div>
 </div>
 
 <!-- APP SHELL -->
@@ -409,10 +481,20 @@
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="globalSearch" placeholder="Search reports, months...">
       </div>
-      <button id="syncDataBtn" class="btn-sync">
-        <svg class="sync-icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l-2.65 2.65"/></svg>
-        <span id="syncDataText">Sync Data</span>
-      </button>
+      <div class="header-actions">
+        <button id="downloadTemplateBtn" class="btn-action secondary" type="button">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Download CSV Template</span>
+        </button>
+        <button id="uploadDataBtn" class="btn-action primary" type="button">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Upload Data</span>
+        </button>
+        <button id="syncDataBtn" class="btn-sync" type="button">
+          <svg class="sync-icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l-2.65 2.65"/></svg>
+          <span id="syncDataText">Sync Data</span>
+        </button>
+      </div>
       <div id="syncIndicator">
         <span class="sync-dot loading" id="syncDot"></span>
         <span id="syncText">Connecting...</span>
@@ -423,6 +505,63 @@
     </div>
   </div>
 </div>
+<input type="file" id="csvFileInput" accept=".csv,text/csv" hidden>
+
+<div class="modal-backdrop" id="uploadModalBackdrop" aria-hidden="true">
+  <div class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
+    <div class="upload-modal-head">
+      <div>
+        <div class="upload-modal-title" id="uploadModalTitle">CSV Upload Result</div>
+        <div class="upload-modal-sub" id="uploadModalSubtitle">Review the import summary before closing this dialog.</div>
+      </div>
+      <button class="upload-modal-close" id="uploadModalCloseBtn" type="button" aria-label="Close upload result">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="upload-modal-body">
+      <div class="upload-summary">
+        <div class="upload-summary-card updated"><strong id="uploadUpdatedCount">0</strong><span>Updated</span></div>
+        <div class="upload-summary-card skipped"><strong id="uploadSkippedCount">0</strong><span>Skipped</span></div>
+        <div class="upload-summary-card errors"><strong id="uploadErrorCount">0</strong><span>Errors</span></div>
+      </div>
+      <div class="upload-errors" id="uploadErrorsWrap" hidden>
+        <div class="upload-errors-title">Row Errors</div>
+        <ul id="uploadErrorsList"></ul>
+      </div>
+      <div class="upload-modal-actions">
+        <button type="button" class="btn-action secondary" id="uploadModalDismissBtn">Close</button>
+        <button type="button" class="btn-action primary" id="uploadModalRetryBtn">Upload Another File</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="editModalBackdrop" aria-hidden="true">
+  <div class="upload-modal" style="max-width: 420px;" role="dialog" aria-modal="true">
+    <div class="upload-modal-head" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b52cb 100%);">
+      <div>
+        <div class="upload-modal-title">Update Record</div>
+        <div class="upload-modal-sub" id="editModalSubtitle">Task Name</div>
+      </div>
+      <button class="upload-modal-close" id="editModalCloseBtn" type="button">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="upload-modal-body">
+      <form id="editRecordForm">
+        <div class="form-group">
+          <label class="form-label">Date Submitted</label>
+          <input type="date" id="editDateInput" class="form-input" />
+        </div>
+        <div class="upload-modal-actions">
+          <button type="button" class="btn-action secondary" id="editModalCancelBtn">Cancel</button>
+          <button type="submit" class="btn-action primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

@@ -5,8 +5,6 @@
 function runETLPipeline() {
   try {
     console.log("[TRACE] Initiating pipeline...");
-    console.log("[TRACE] Fetching active configurations...");
-    const configs = getActiveConfigurations();
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     // Hardcoded to avoid Constants.gs dependency issues
@@ -23,23 +21,23 @@ function runETLPipeline() {
       console.log("[RESET] Cleaned warehouse records for fresh run.");
     }
 
-    // COLLECT ALL ROWS first, then write in a single batch (reduces Sheets API calls)
-    const allRows = [];
-    configs.forEach(config => {
-      console.log(`Extracting metrics for ID: ${config.configId} (${config.sheetName})`);
-      const cleanRows = fetchReportData(config);
-      if (cleanRows && cleanRows.length > 0) {
-        allRows.push(...cleanRows);
-        console.log(`[COLLECTED] ${cleanRows.length} rows from ${config.sheetName}`);
-      } else {
-        console.log(`[INFO] No status data found to extract for ${config.sheetName}`);
-      }
-    });
+    const payload = buildDashboardPayload();
+    const allRows = (payload.data || []).map(row => [
+      row.Department || "",
+      row.ReportName || "",
+      row.Month || "",
+      row.MetricType || "",
+      row.PersonInCharge || "",
+      row.Date_Submitted || "",
+      row.Deadline || "",
+      row.Status || "",
+      row.Remarks || ""
+    ]);
 
     // SINGLE BATCH WRITE — one Sheets API call for all sheets combined
     if (allRows.length > 0) {
       dashboardSheet.getRange(2, 1, allRows.length, allRows[0].length).setValues(allRows);
-      console.log(`[LOAD COMPLETE] Successfully cataloged ${allRows.length} total rows across ${configs.length} sheet(s).`);
+      console.log(`[LOAD COMPLETE] Successfully cataloged ${allRows.length} total rows.`);
     } else {
       console.log("[INFO] No data to write. Dashboard_Data remains empty.");
     }
