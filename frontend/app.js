@@ -616,7 +616,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const row = State.allData.find(r => 
         String(r.Sheet) === String(recordToSave.sheet) && 
         String(r.Row) === String(recordToSave.rowNumber) &&
-        String(r.DateColumn) === String(recordToSave.dateColumn)
+        String(r.Task || r.MetricType) === String(recordToSave.task) &&
+        String(r.Period || r.Month) === String(recordToSave.period)
       );
 
       if (row) {
