@@ -345,6 +345,7 @@ function buildTableHtml(rows) {
               task: row.Task || row.MetricType,
               period: row.Period || row.Month,
               submitted: row.Date_Submitted,
+              remarks: row.Remarks,
               sheet: row.Sheet,
               rowNumber: row.Row,
               dateColumn: row.DateColumn
@@ -552,6 +553,9 @@ window.openEditModal = function(recordData) {
   const dateInput = document.getElementById("editDateInput");
   dateInput.value = "";
 
+  const remarksInput = document.getElementById("editRemarksInput");
+  if (remarksInput) remarksInput.value = recordData.remarks || "";
+
   const raw = recordData.submitted;
   if (raw && raw !== "---" && raw !== "") {
     let isoString = "";
@@ -603,43 +607,43 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const recordToSave = currentEditRecord;
       const submittedDateValue = document.getElementById("editDateInput").value;
+      const remarksValue = document.getElementById("editRemarksInput").value;
+
+      // 1. Find the actual row in our local data
+      const row = State.allData.find(r => 
+        r.Sheet === recordToSave.sheet && 
+        r.Row === recordToSave.rowNumber
+      );
+
+      if (row) {
+        // 2. Update the values
+        row.Date_Submitted = submittedDateValue;
+        row.Remarks = remarksValue;
+        
+        // 3. Recalculate status locally
+        const dDate = row.Deadline ? new Date(row.Deadline) : null;
+        const sDate = submittedDateValue ? new Date(submittedDateValue) : null;
+        const today = new Date();
+        
+        let newStatus = "Pending";
+        if (dDate && !isNaN(dDate.getTime())) {
+          dDate.setHours(0,0,0,0);
+          today.setHours(0,0,0,0);
+          if (!sDate || isNaN(sDate.getTime())) {
+            newStatus = today > dDate ? "Overdue" : "Pending";
+          } else {
+            sDate.setHours(0,0,0,0);
+            newStatus = sDate > dDate ? "Late" : "Ahead";
+          }
+        } else {
+          newStatus = (sDate && !isNaN(sDate.getTime())) ? "Ahead" : "Pending";
+        }
+        
+        row.Status = newStatus;
+      }
 
       closeEditModal();
-      showFSL("Saving Record...", "Writing to the live spreadsheet");
-
-      try {
-        const payload = {
-          action: "updateRecordDirect",
-          data: {
-            sheet: recordToSave.sheet,
-            row: recordToSave.rowNumber,
-            dateColumn: recordToSave.dateColumn,
-            submittedDate: submittedDateValue
-          }
-        };
-
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-        
-        const rawText = await response.text();
-        const result = JSON.parse(rawText);
-        
-        if (!response.ok || (result.errors && result.errors.length > 0)) {
-          throw new Error((result.errors && result.errors[0]) || "Update failed");
-        }
-
-        document.getElementById("fslText").textContent = "Syncing Dashboard...";
-        document.getElementById("fslSub").textContent = "Refreshing data";
-        await loadData({ silent: true });
-      } catch (err) {
-        console.error(err);
-        showErrorToast(`Failed to update: ${err.message}`);
-      } finally {
-        hideFSL();
-      }
+      renderActivePane();
     });
   }
 });
