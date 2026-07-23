@@ -9,7 +9,7 @@ const MONTH_ORDER = ["January","February","March","April","May","June","July","A
 const DEPT_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4"];
 const darkTooltip = { backgroundColor: '#111827', titleColor: '#fff', bodyColor: '#cbd5e1', padding: 10, cornerRadius: 8 };
 
-const State = { allData: [], activeSheet: null, activeSearch: "", activeSubpage: "All", openGroups: new Set(), chartInstances: {}, user: "Admin" };
+const State = { allData: [], activeSheet: null, activeSearch: "", openGroups: new Set(), chartInstances: {}, user: "Admin" };
 
 function esc(str) { return str == null ? "" : String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function fmtDate(v) { if (!v || String(v).trim()==="" || v==="---") return "---"; const s = String(v).trim(); if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){ const [m,d,y]=s.split("/"); return `${m.padStart(2,"0")}/${d.padStart(2,"0")}/${y}`; } const d=new Date(s); if(isNaN(d.getTime())) return s; return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}/${d.getFullYear()}`; }
@@ -186,38 +186,10 @@ function buildNav() {
   });
 }
 
-window.setSubpage = function(sub) {
-  State.activeSubpage = sub;
-  renderActivePane();
-};
-
 function renderActivePane() {
   const container = document.getElementById("panesContainer");
   let data = State.activeSheet === null ? State.allData : State.allData.filter(r => (r.Department || r.Sheet || "") === State.activeSheet);
   
-  if (State.activeSheet !== "Statistical") State.activeSubpage = "All";
-
-  let subNavHtml = "";
-  if (State.activeSheet === "Statistical") {
-    const tabs = ["All", "Data Files", "Narrative Reports", "Financial Reports"];
-    subNavHtml = `<div class="sub-nav-container" style="display:flex; gap:8px; margin-bottom:20px; overflow-x:auto;">
-      ${tabs.map(t => `<button class="btn-action ${t === State.activeSubpage ? 'primary' : 'secondary'}" onclick="setSubpage('${t}')">${t}</button>`).join("")}
-    </div>`;
-
-    if (State.activeSubpage !== "All") {
-      data = data.filter(r => {
-        const cat = (r.Category || "").toLowerCase();
-        const rep = (r.ReportName || "").toLowerCase();
-        const task = (r.Task || "").toLowerCase();
-        const combined = cat + " " + rep + " " + task;
-        if (State.activeSubpage === "Data Files") return combined.includes("data") || combined.includes("file");
-        if (State.activeSubpage === "Narrative Reports") return combined.includes("narrative");
-        if (State.activeSubpage === "Financial Reports") return combined.includes("financial") || combined.includes("fund") || combined.includes("budget");
-        return true;
-      });
-    }
-  }
-
   if (State.activeSearch) data = data.filter(r => fuzzyMatch(State.activeSearch, rowSearchText(r)));
   
   document.getElementById("headerTitle").textContent = State.activeSheet || "All Activities";
@@ -259,7 +231,6 @@ function renderActivePane() {
     // Department Layout
     container.innerHTML = `
       ${kpiHtml}
-      ${subNavHtml}
       <div class="bento-mid">
         <div class="data-card">
           <div class="data-card-header">
