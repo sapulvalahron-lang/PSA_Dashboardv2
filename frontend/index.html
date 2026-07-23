@@ -482,14 +482,6 @@
         <input type="text" id="globalSearch" placeholder="Search reports, months...">
       </div>
       <div class="header-actions">
-        <button id="downloadTemplateBtn" class="btn-action secondary" type="button">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>Download CSV Template</span>
-        </button>
-        <button id="uploadDataBtn" class="btn-action primary" type="button">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <span>Upload Data</span>
-        </button>
         <button id="syncDataBtn" class="btn-sync" type="button">
           <svg class="sync-icon" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.59-9.21l-2.65 2.65"/></svg>
           <span id="syncDataText">Sync Data</span>
@@ -505,36 +497,7 @@
     </div>
   </div>
 </div>
-<input type="file" id="csvFileInput" accept=".csv,text/csv" hidden>
 
-<div class="modal-backdrop" id="uploadModalBackdrop" aria-hidden="true">
-  <div class="upload-modal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
-    <div class="upload-modal-head">
-      <div>
-        <div class="upload-modal-title" id="uploadModalTitle">CSV Upload Result</div>
-        <div class="upload-modal-sub" id="uploadModalSubtitle">Review the import summary before closing this dialog.</div>
-      </div>
-      <button class="upload-modal-close" id="uploadModalCloseBtn" type="button" aria-label="Close upload result">
-        <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="upload-modal-body">
-      <div class="upload-summary">
-        <div class="upload-summary-card updated"><strong id="uploadUpdatedCount">0</strong><span>Updated</span></div>
-        <div class="upload-summary-card skipped"><strong id="uploadSkippedCount">0</strong><span>Skipped</span></div>
-        <div class="upload-summary-card errors"><strong id="uploadErrorCount">0</strong><span>Errors</span></div>
-      </div>
-      <div class="upload-errors" id="uploadErrorsWrap" hidden>
-        <div class="upload-errors-title">Row Errors</div>
-        <ul id="uploadErrorsList"></ul>
-      </div>
-      <div class="upload-modal-actions">
-        <button type="button" class="btn-action secondary" id="uploadModalDismissBtn">Close</button>
-        <button type="button" class="btn-action primary" id="uploadModalRetryBtn">Upload Another File</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <div class="modal-backdrop" id="editModalBackdrop" aria-hidden="true">
   <div class="upload-modal" style="max-width: 420px;" role="dialog" aria-modal="true">
