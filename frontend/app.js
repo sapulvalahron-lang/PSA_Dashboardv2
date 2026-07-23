@@ -9,7 +9,7 @@ const MONTH_ORDER = ["January","February","March","April","May","June","July","A
 const DEPT_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4"];
 const darkTooltip = { backgroundColor: '#111827', titleColor: '#fff', bodyColor: '#cbd5e1', padding: 10, cornerRadius: 8 };
 
-const State = { allData: [], activeSheet: null, activeSearch: "", openGroups: new Set(), chartInstances: {}, user: "Admin" };
+const State = { allData: [], activeSheet: null, activeSearch: "", activeSubpage: "All", openGroups: new Set(), chartInstances: {}, user: "Admin" };
 
 function esc(str) { return str == null ? "" : String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function fmtDate(v) { if (!v || String(v).trim()==="" || v==="---") return "---"; const s = String(v).trim(); if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){ const [m,d,y]=s.split("/"); return `${m.padStart(2,"0")}/${d.padStart(2,"0")}/${y}`; } const d=new Date(s); if(isNaN(d.getTime())) return s; return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}/${d.getFullYear()}`; }
@@ -186,9 +186,38 @@ function buildNav() {
   });
 }
 
+window.setSubpage = function(sub) {
+  State.activeSubpage = sub;
+  renderActivePane();
+};
+
 function renderActivePane() {
   const container = document.getElementById("panesContainer");
   let data = State.activeSheet === null ? State.allData : State.allData.filter(r => (r.Department || r.Sheet || "") === State.activeSheet);
+  
+  if (State.activeSheet !== "Statistical") State.activeSubpage = "All";
+
+  let subNavHtml = "";
+  if (State.activeSheet === "Statistical") {
+    const tabs = ["All", "Data Files", "Narrative Reports", "Financial Reports"];
+    subNavHtml = `<div class="sub-nav-container" style="display:flex; gap:8px; margin-bottom:20px; overflow-x:auto;">
+      ${tabs.map(t => `<button class="btn-action ${t === State.activeSubpage ? 'primary' : 'secondary'}" onclick="setSubpage('${t}')">${t}</button>`).join("")}
+    </div>`;
+
+    if (State.activeSubpage !== "All") {
+      data = data.filter(r => {
+        const cat = (r.Category || "").toLowerCase();
+        const rep = (r.ReportName || "").toLowerCase();
+        const task = (r.Task || "").toLowerCase();
+        const combined = cat + " " + rep + " " + task;
+        if (State.activeSubpage === "Data Files") return combined.includes("data") || combined.includes("file");
+        if (State.activeSubpage === "Narrative Reports") return combined.includes("narrative");
+        if (State.activeSubpage === "Financial Reports") return combined.includes("financial") || combined.includes("fund") || combined.includes("budget");
+        return true;
+      });
+    }
+  }
+
   if (State.activeSearch) data = data.filter(r => fuzzyMatch(State.activeSearch, rowSearchText(r)));
   
   document.getElementById("headerTitle").textContent = State.activeSheet || "All Activities";
@@ -230,6 +259,7 @@ function renderActivePane() {
     // Department Layout
     container.innerHTML = `
       ${kpiHtml}
+      ${subNavHtml}
       <div class="bento-mid">
         <div class="data-card">
           <div class="data-card-header">
@@ -550,39 +580,40 @@ window.openEditModal = function(recordData) {
   currentEditRecord = recordData;
   document.getElementById("editModalSubtitle").textContent = `${recordData.task} (${recordData.period})`;
   
-  const dateInput = document.getElementById("editDateInput");
-  dateInput.value = "";
-
-  const remarksInput = document.getElementById("editRemarksInput");
-  if (remarksInput) remarksInput.value = recordData.remarks || "";
-
-  const raw = recordData.submitted;
-  if (raw && raw !== "---" && raw !== "") {
+  const parseDateForInput = (raw) => {
+    if (!raw || raw === "---") return "";
     let isoString = "";
-
-    // Format 1: MM/DD/YYYY  ← what hierarchyFormatDateValue() produces
     const slashMatch = String(raw).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (slashMatch) {
       const [, mm, dd, yyyy] = slashMatch;
       isoString = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
     }
-
-    // Format 2: already YYYY-MM-DD (ISO)
     if (!isoString && /^\d{4}-\d{2}-\d{2}/.test(String(raw))) {
       isoString = String(raw).slice(0, 10);
     }
-
-    // Format 3: fallback — try generic Date parse (works for RFC 2822, full ISO, etc.)
     if (!isoString) {
       const d = new Date(raw);
       if (!isNaN(d.getTime())) {
         isoString = d.toISOString().split("T")[0];
       }
     }
+    return isoString;
+  };
 
-    dateInput.value = isoString;
+  const dateInput = document.getElementById("editDateInput");
+  dateInput.value = parseDateForInput(recordData.submitted);
+
+  const deadlineInput = document.getElementById("editDeadlineInput");
+  if (deadlineInput) {
+    deadlineInput.value = parseDateForInput(recordData.deadline);
+    deadlineInput.readOnly = State.user !== "Admin";
+    if (State.user !== "Admin") deadlineInput.style.backgroundColor = "#f3f4f6";
+    else deadlineInput.style.backgroundColor = "";
   }
-  
+
+  const remarksInput = document.getElementById("editRemarksInput");
+  if (remarksInput) remarksInput.value = recordData.remarks || "";
+
   document.getElementById("editModalBackdrop").classList.add("show");
 };
 
@@ -607,6 +638,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const recordToSave = currentEditRecord;
       const submittedDateValue = document.getElementById("editDateInput").value;
+      const deadlineValue = document.getElementById("editDeadlineInput") ? document.getElementById("editDeadlineInput").value : "";
       const remarksValue = document.getElementById("editRemarksInput").value;
 
       // 1. Find the actual row in our local data
@@ -618,6 +650,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (row) {
         // 2. Update the values
         row.Date_Submitted = submittedDateValue;
+        if (State.user === "Admin") {
+          row.Deadline = deadlineValue;
+        }
         row.Remarks = remarksValue;
         
         // 3. Recalculate status locally
