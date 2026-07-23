@@ -614,8 +614,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // 1. Find the actual row in our local data
       const row = State.allData.find(r => 
-        r.Sheet === recordToSave.sheet && 
-        r.Row === recordToSave.rowNumber
+        String(r.Sheet) === String(recordToSave.sheet) && 
+        String(r.Row) === String(recordToSave.rowNumber)
       );
 
       if (row) {
